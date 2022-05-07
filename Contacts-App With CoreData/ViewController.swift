@@ -6,33 +6,106 @@
 //
 
 import UIKit
+import Firebase
+import FirebaseDatabase
 
 class ViewController: UIViewController {
 
     @IBOutlet weak var kisilerTableView: UITableView!
     @IBOutlet weak var searchBar: UISearchBar!
     
-    var liste = [String]()
+    var kisilerListe = [Kisiler]()
+    
+    var ref: DatabaseReference!
     
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        liste = ["Ahmet", "Ece", "Zeynep", "Mehmet", "Talat"]
+        
         
         kisilerTableView.delegate = self
         kisilerTableView.dataSource = self
         searchBar.delegate = self
+        
+        ref = Database.database().reference()
+        tumKisilerAl()
+        
 
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        
+        let indeks = sender as? Int
+        
         if segue.identifier == "toDetay" {
-            
+            let gidilecekVC = segue.destination as! KisiDetayViewController
+            gidilecekVC.kisi = kisilerListe[indeks!]
         }
         
         if segue.identifier == "toGuncelle" {
             
+            let gidilecekVC = segue.destination as! KisiGuncelleViewController
+            gidilecekVC.kisi = kisilerListe[indeks!]
         }
+    }
+    
+    func tumKisilerAl(){
+        ref.child("kisiler").observe(.value, with: { snapshot in
+            
+            if let gelenVeriButunu = snapshot.value as? [String:AnyObject]{
+                self.kisilerListe.removeAll()
+                for gelenSatirVerisi in gelenVeriButunu {
+                    if let sozluk = gelenSatirVerisi.value as? NSDictionary{
+                        let key = gelenSatirVerisi.key
+                        let kisi_ad = sozluk["kisi_ad"] as? String ?? ""
+                        let kisi_tel = sozluk["kisi_tel"] as? String ?? ""
+                        
+                        let kisi = Kisiler(kisi_id: key, kisi_ad: kisi_ad, kisi_tel: kisi_tel)
+                        
+                        self.kisilerListe.append(kisi)
+                        
+                    }
+                }
+            }
+            else{
+                self.kisilerListe = [Kisiler]()
+            }
+            DispatchQueue.main.async {
+                self.kisilerTableView.reloadData()
+            }
+            
+        })
+    }
+    
+    
+    func aramaYap(aramaKelimesi:String){
+        ref.child("kisiler").observe(.value, with: { snapshot in
+            
+            if let gelenVeriButunu = snapshot.value as? [String:AnyObject]{
+                self.kisilerListe.removeAll()
+                for gelenSatirVerisi in gelenVeriButunu {
+                    if let sozluk = gelenSatirVerisi.value as? NSDictionary{
+                        let key = gelenSatirVerisi.key
+                        let kisi_ad = sozluk["kisi_ad"] as? String ?? ""
+                        let kisi_tel = sozluk["kisi_tel"] as? String ?? ""
+                        
+                        if kisi_ad.contains(aramaKelimesi){
+                            let kisi = Kisiler(kisi_id: key, kisi_ad: kisi_ad, kisi_tel: kisi_tel)
+                            
+                            self.kisilerListe.append(kisi)
+                        }
+
+                    }
+                }
+            }
+            else{
+                self.kisilerListe = [Kisiler]()
+            }
+            DispatchQueue.main.async {
+                self.kisilerTableView.reloadData()
+            }
+            
+        })
     }
 
 }
@@ -44,13 +117,15 @@ extension ViewController:UITableViewDelegate, UITableViewDataSource{
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return liste.count
+        return kisilerListe.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "kisiHucre", for: indexPath) as! KisiHucreTableViewCell
         
-        cell.kisiYaziLabel.text = liste[indexPath.row]
+        let cell = tableView.dequeueReusableCell(withIdentifier: "kisiHucre", for: indexPath) as! KisiHucreTableViewCell
+        let kisi = kisilerListe[indexPath.row]
+        
+        cell.kisiYaziLabel.text = "\(kisi.kisi_ad!)---- \(kisi.kisi_tel!)"
         
         return cell
         
@@ -88,13 +163,14 @@ extension ViewController:UITableViewDelegate, UITableViewDataSource{
         
         let silAction = UIContextualAction(style: .destructive, title: "Sil") { (contextualAction, view, boolValue) in
             
-            print("Sil Tıklandı \(self.liste[indexPath.row])")
-
+            let kisi = self.kisilerListe[indexPath.row]
+            
+            self.ref.child("kisiler").child(kisi.kisi_id!).removeValue()
             
         }
         
         let guncelleAction = UIContextualAction(style: .normal, title: "Güncelle") { (contextualAction,view,boolValue) in
-            print("Güncelle Tıklandı : \(self.liste[indexPath.row])")
+            
             self.performSegue(withIdentifier: "toGuncelle", sender: indexPath.row)
         
         }
@@ -106,5 +182,13 @@ extension ViewController:UISearchBarDelegate{
     
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         print("Arama Sonuç : \(searchText)")
+        
+        if searchText == ""{
+            tumKisilerAl()
+        }
+        else{
+            aramaYap(aramaKelimesi:searchText)
+        }
+        
     }
 }

@@ -6,28 +6,33 @@
 //
 
 import UIKit
+import Firebase
 
 class KisiEkleViewController: UIViewController {
 
     @IBOutlet weak var kisiAdTextField: UITextField!
     @IBOutlet weak var kisiTelTextField: UITextField!
+    
+    var ref:DatabaseReference!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // Do any additional setup after loading the view.
+        ref = Database.database().reference()
     }
     
     @IBAction func ekle(_ sender: Any) {
+        
+        if let ad = kisiAdTextField.text, let tel = kisiTelTextField.text {
+           kisiEkle(kisi_ad: ad, kisi_tel: tel)
+        }
     }
     
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
+    func kisiEkle(kisi_ad:String,kisi_tel:String){
+        
+        let dict:[String:Any] = ["kisi_id":"","kisi_ad":kisi_ad,"kisi_tel":kisi_tel]
+        
+        let newRef = ref.child("kisiler").childByAutoId()
+        newRef.setValue(dict)
     }
-    */
-
 }
